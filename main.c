@@ -2,6 +2,9 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <omp.h>
+
+
 
 int product = 71;
 //double primes[8] = {2,3,5,7,11,13,17,19};
@@ -45,6 +48,7 @@ int * generatePrimes(double max) {
 }
 
 int main(int argc, char** argv) {
+    double start = omp_get_wtime();
     //get product from terminal arguments
     if (argc > 1) {
         char * pEnd;
@@ -63,7 +67,9 @@ int main(int argc, char** argv) {
 	for (int i = 0; primeList[i] != 0; i++) {
 	    if ( fmod(product, primeList[i]) == 0 ) {
             printf("Primes found: %d, %d\n", primeList[i], (product/primeList[i]));
-           return 0;
+            double end = omp_get_wtime();
+            printf("time: %lf", end-start);
+            return 0;
 	    }
 	}
     printf("Prime factors not found.\n");
