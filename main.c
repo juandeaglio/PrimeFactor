@@ -17,10 +17,10 @@
 #include <omp.h>
 
 
-unsigned long long product = 71;
+unsigned long long product = 9085330489;
 //double primes[8] = {2,3,5,7,11,13,17,19};
 
-unsigned long long * generatePrimes(double max) {
+unsigned long long * generatePrimes(long double max) {
 
     //int *array = (int*) malloc (max*sizeof(int));
     unsigned long long cap = (unsigned long long) max + 1;
@@ -29,7 +29,7 @@ unsigned long long * generatePrimes(double max) {
     //initialize entire array with 1's
     //parallelized this initialization by splitting the amount of
     //indices that a core must initialize to one.
-    #pragma omp parallel shared(array)
+    #pragma omp parallel
     {
         unsigned long long tid = (unsigned long long) omp_get_thread_num();
         unsigned long long nthreads = (unsigned long long) omp_get_num_threads();
@@ -42,25 +42,32 @@ unsigned long long * generatePrimes(double max) {
     array[0] = 0;
     array[1] = 0;
     //for every array index that is still marked 1 for prime
-    for (unsigned long long i = 2; (i < cap) && (array[i] == 1); i++)
+
+
+    for (unsigned long long i = 2; (i < sqrt(cap)); i++)
     {
-        //Parallelized the non-primes being marked in the array of numbers.
         #pragma omp parallel
         {
+            //Parallelized the non-primes being marked in the array of numbers.
+
             unsigned long long tid = (unsigned long long) omp_get_thread_num();
             unsigned long long nthreads = (unsigned long long) omp_get_num_threads();
             //multiply the index number by consecutive integers and mark each product as not prime
-            for (unsigned long long j = tid+2; (i * j) < cap; j+=nthreads)
+            for (unsigned long long j = tid+2; (i * j) < (cap); j+=nthreads)
             {
                 array[i * j] = 0;
             }
+            if(i < cap)
+            {
+                #pragma omp barrier
+            }
         }
-    }
-
+     }
 
     count = 0;
     //count primes for output array size
     //Parallelized the counting of each prime number, so that it returns the size of the output array.
+
     #pragma omp parallel
     {
         unsigned long long tid = (unsigned long long) omp_get_thread_num();
@@ -73,36 +80,32 @@ unsigned long long * generatePrimes(double max) {
             {
                 subcount++;
             }
+
         }
         //each thread has its own copy of subcount,
         //this may help with reducing false sharing
         #pragma omp critical
             count+=subcount;
-
-        //printf("tid %lld, subcount:%lld, count total:%lld\n",tid,subcount, count);
     }
-    //printf("count: %lld\n",count);
+    printf("count: %lld\n",count);
     unsigned long long *output = (unsigned long long*)malloc(count*sizeof(unsigned long long));
 
     //add primes to output array
     //Parallelized like the previous for loop,
     //Divides the work up by number of cores (each thread starts at i = its own unique thread id)
     //Then iterates through for loop with multple threads.
-    count = 0;
-    #pragma omp parallel shared(output,array,cap)
-    {
-        unsigned long long tid = (unsigned long long) omp_get_thread_num();
-        unsigned long long nthreads = (unsigned long long) omp_get_num_threads();
-        unsigned long long subcount = 0;
 
-        for (unsigned long long i = tid+2; i < cap; i+=nthreads)
+    unsigned long long index = 0;
+    for (unsigned long long i = 2; i < cap; i++)
+    {
+        if (array[i] == 1)
         {
-            if (array[i] == 1) {
-                output[count] = i;
-                subcount+=nthreads;
-            }
+            output[index] = i;
+            index++;
         }
     }
+
+
     return output;
 }
 
@@ -119,33 +122,37 @@ int main(int argc, char** argv) {
 
     printf("product = %lld \n", product);
 
-    unsigned long long * primeList = generatePrimes(sqrt(product));
+    unsigned long long * primeList = generatePrimes((unsigned long long)sqrtl(product));
     // creating variables to pass into our parallel pragma so that it can be used in the parallelization
-    unsigned long long i;
 	bool found = false;
-    unsigned long long  nthreads,tid;
 
     //The final parallelization that occurs
     //Work is split up between all cores, each core iterates through the array
     //Checks if the number it iterates to is modulus to the product, if so it is our prime factor
     //Finding one prime factor gives us the second prime factor as well.
-	#pragma omp parallel shared(primeList,nthreads,product,found) private(tid,i)
+    //for(int i = 0; i < 4085; i++)
+    //{
+        //printf("i: %d, primeList[i]: %lld\n", i, primeList[i]);
+    //}
+    unsigned long long i;
+	#pragma omp parallel shared(found) private(i)
 	{
 	    //gets number of threads, this will be useful for iterating later
-        nthreads = (unsigned long long )omp_get_num_threads();
+        unsigned long long  nthreads = (unsigned long long )omp_get_num_threads();
         //get thread id, this will initialize each for loop that is run
-        tid = (unsigned long long )omp_get_thread_num();
+        unsigned long long tid = (unsigned long long )omp_get_thread_num();
 
 		for (i = tid; primeList[i] != 0 && !found; i+=nthreads)
 		{
-            //printf("tid:%d, i:%ld, primeList[i]: %ld, nthreads: %d, product: %ld\n",tid,i,primeList[i],nthreads,product);
             if (fmod(product, primeList[i]) == 0)
 			{
+                printf("Primes found: %lld, %lld\n", primeList[i], (product / primeList[i]));
                 found = true;
-				printf("Primes found: %lld, %lld\n", primeList[i], (product / primeList[i]));
+
 			}
 		}
 	}
+
 	double end = omp_get_wtime();
 	printf("time: %lf\n", end - start);
 	return 1;
