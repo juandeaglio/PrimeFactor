@@ -89,12 +89,6 @@ unsigned long long * generatePrimes(long double max) {
     }
     printf("count: %lld\n",count);
     unsigned long long *output = (unsigned long long*)malloc(count*sizeof(unsigned long long));
-
-    //add primes to output array
-    //Parallelized like the previous for loop,
-    //Divides the work up by number of cores (each thread starts at i = its own unique thread id)
-    //Then iterates through for loop with multple threads.
-
     unsigned long long index = 0;
     for (unsigned long long i = 2; i < cap; i++)
     {
